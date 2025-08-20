@@ -6,7 +6,7 @@
 
 
 PROJECT = "sc16is752_i2c_min"
-VERSION = "1.0.0"
+VERSION = "0.0.9"
 sys = require("sys")
 local bit = bit
 
