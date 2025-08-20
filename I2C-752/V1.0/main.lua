@@ -50,10 +50,10 @@ local function rd_fifo(ch, reg, n)
   return i2c.recv(I2C_ID, DEV7BIT, n)
 end
 
--- 设置波特率：xtal=外部晶振(常见 1.8432MHz)，baud=115200 等
--- divisor = round(xtal / (16*baud))
---[[
-波特率与分频系数对照表
+--[[设置波特率：xtal=外部晶振(常见 1.8432MHz)，baud=115200 等
+    divisor = round(xtal / (16*baud))
+
+    波特率与分频系数对照表
     波特率    分频值
     2400    48
     3600    32
@@ -62,8 +62,7 @@ end
     9600    12
     19200   6
 ]]
-
-local function set_baud(ch, xtal, baud)
+local function set_baud(ch, xtal, baud)          --9600
   local div = 12--9600                           --math.floor((xtal / (16 * baud)) + 0.5)
   if div < 1 then div = 1 end
   local lcr = rd1(ch, REG.LCR)
@@ -98,30 +97,43 @@ sys.taskInit(function()
   local CH = "A"
   set_8N1(CH)
   fifo_on(CH)
-  set_baud(CH, 1843200, 9600)   -- 若板上是 1.8432MHz，就用 1843200
+  set_baud(CH, 1843200, 9600)   -- 若板上是 1.8432MHz，就用 1843200 ，暂时固定为9600
 
-  -- === “像24C02那样”的 send→wait→recv 用法示例（回环测试）===
+  -- ===send→wait→recv 用法示例（回环测试）===
   -- loopback(CH, true)              -- 开回环，这样发出的会从自己RX收到
 
-  -- 发送（THR=寄存器0x00）：子地址+数据；和你的 24C02 写法结构一致
-  i2c.send(I2C_ID, DEV7BIT, string.char(subaddr(REG.THR, CH)) .. "123456789055")
+  -- 发送（THR=寄存器0x00）：子地址+数据.
+
+  local cmd_active_upload_1 = string.char(0xFF, 0x01, 0x78, 0x40, 0x00, 0x00, 0x00, 0x00, 0x47)  --主动模式-9bit
+  local cmd_2 = string.char(0xD2)  --温度+湿度被动模式-4bit
+  i2c.send(I2C_ID, DEV7BIT, string.char(subaddr(REG.THR, CH)) .. cmd_2)
   sys.wait(100)
 
-  -- 接收（RHR=寄存器0x00）：先发子地址，再读 8 字节
+  -- 接收（RHR=寄存器0x00）：先发子地址，再读字节
   i2c.send(I2C_ID, DEV7BIT, string.char(subaddr(REG.RHR, CH)))
-  local data = i2c.recv(I2C_ID, DEV7BIT, 12)
+  local data = i2c.recv(I2C_ID, DEV7BIT, 4)
   log.info("i2c", "rx", data and data:toHex() or "nil", data or "nil")
 
   -- loopback(CH, false)
 
   while true do 
 
-
+    local cmd_2 = string.char(0xD2)  --温度+湿度被动模式-4bit
+    i2c.send(I2C_ID, DEV7BIT, string.char(subaddr(REG.THR, CH)) .. cmd_2)
+    sys.wait(200)
     i2c.send(I2C_ID, DEV7BIT, string.char(subaddr(REG.RHR, CH)))
-    local data = i2c.recv(I2C_ID, DEV7BIT, 12)
-    log.info("i2c", "rx", data and data:toHex() or "nil", data or "nil")
-    sys.wait(1000)
+    local data = i2c.recv(I2C_ID, DEV7BIT, 4)
+    -- log.info("i2c", "rx", data and data:toHex() or "nil", data or "nil")
+
+    local b1, b2, b3, b4 = string.byte(data, 1, 4)
+
+            -- 转成数值（注意字节序，这里假设大端，也就是高字节在前）
+            local num1 = (b1 << 8) | b2   -- 0x0AD8 = 2776
+    log.info("i2c"..I2C_ID.."--uart"..CH, "温度=" .. string.format("%.2f",num1/100).."°C")--, "湿度=" .. string.format("%.1f",num2/100).."%")
+
+    sys.wait(800)
   
+
   
   end
 end)
