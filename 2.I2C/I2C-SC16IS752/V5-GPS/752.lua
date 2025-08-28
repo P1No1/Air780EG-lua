@@ -79,7 +79,7 @@ function M.new(i2c_id, addr7bit)
   -- 设置波特率：xtal=外部晶振(如 1.8432MHz)，baud=115200 等
   -- 这里沿用示例中的固定分频 12 → 9600bps；若要公式计算请改为注释行
   function self:set_baud(ch, xtal, baud)
-    local div = 12 -- math.floor((xtal / (16 * baud)) + 0.5)
+    local div = 12 -- math.floor(xtal / (16 * baud))
     if div < 1 then div = 1 end
     local lcr = self:rd1(ch, M.REG.LCR)
     self:wr1(ch, M.REG.LCR, bit.bor(lcr, 0x80))           -- DLAB=1

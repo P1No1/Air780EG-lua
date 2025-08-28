@@ -21,7 +21,7 @@ sys.taskInit(function()
   -- 配置通道 A 和 B
   local function setup_uart(channel)
     uart:set_8N1(channel)          -- 8N1 配置
-    uart:fifo_on(channel)          -- 开启 FIFO 缓冲区
+    uart:fifo_on(channel)          -- fifo 缓冲区
     uart:set_baud(channel, 1843200, 9600)  -- 设置波特率
   end
   
@@ -42,15 +42,9 @@ sys.taskInit(function()
   setup_uart2("B")
 
 
-
-
-
-
-
   -- 命令字节（温湿度被动模式-4B）
   local cmd_2 = string.char(0xD6)
   local cmd_active_upload_1 = string.char(0xFF, 0x01, 0x87, 0x00, 0x00, 0x00, 0x00, 0x00, 0x78)  --主动模式-9bit
-
 
   -- 一次性发送命令并读取数据的函数
   local function read_T_data(channel)
@@ -61,7 +55,6 @@ sys.taskInit(function()
     local data = uart:rd_fifo(channel, uart.REG.RHR, 14)
     return data
   end
-
 
   local function read_data(channel)
     -- uart:wr_fifo(channel, uart.REG.THR, cmd_2)  -- 发送命令
